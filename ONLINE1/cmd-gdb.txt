@@ -1,0 +1,54 @@
+1  -->  inside gdb
+          unset env
+          set startup-with-shell off
+          set env PATH=/usr/bin
+
+
+
+
+2  -->  inside shell 
+          env -i PATH=/usr/bin `pwd`/a.out
+
+
+
+
+3  -->  fgets(str, size, stream)
+
+  - reads at most (size - 1) chars, always reserves 1 byte for '\0'
+  - stops early on: '\n' (kept in str), or EOF
+  - returns NULL on EOF/error with nothing read -> str unchanged, must guard with if()
+  - stream position is persistent between calls -> repeated calls
+    continue from where the last one left off, NOT from start of file
+
+  strip trailing newline:
+    str[strcspn(str, "\n")] = '\0';
+
+  gotcha:
+    fgets(str, 4, f)  reads only 3 chars, not 4  (off-by-one to remember)
+
+  reset stream to start:
+    rewind(stream);        // or fseek(stream, 0, SEEK_SET);
+
+
+
+4 -->  payload syntax
+
+        payload = bytearray(b"A" * 800) 
+        payload[0:6] = b"admin\0"
+        payload[463:470] = b"UNLOCK\0"
+   
+   or 
+   
+        payload  = b"A" * offset            # pad up to return address
+        payload += p32(target_address)      # overwrite return address (use p64 for 64-bit)
+
+
+
+5  -->  p32 // p64
+          p64
+            target_address.to_bytes(8, byteorder='little')
+        
+        or
+
+          p32
+           target_address.to_bytes(4, byteorder='little') 
