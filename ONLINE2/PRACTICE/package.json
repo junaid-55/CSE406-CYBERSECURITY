@@ -1,0 +1,15 @@
+{
+  "name": "sqli-teaching-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SQL injection teaching demo: vulnerable result site + secure social media site",
+  "scripts": {
+    "start:result": "node result-site/server.js",
+    "start:social": "node social-site/server.js",
+    "generate-seed": "node scripts/generate-seed-sql.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0"
+  }
+}

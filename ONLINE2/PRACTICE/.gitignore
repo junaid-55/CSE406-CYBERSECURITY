@@ -1,0 +1,9 @@
+node_modules/
+npm-debug.log*
+
+# Generated seed data. Names/usernames/passwords are already published
+# in the README, but CGPAs are not committed anywhere — that's the one
+# thing students have to actually extract via SQL injection. Regenerate
+# locally with `npm run generate-seed`.
+mysql-init/01-result-schema.sql
+mysql-init/02-social-schema.sql
