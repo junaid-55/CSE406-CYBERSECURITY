@@ -2,6 +2,12 @@ import sys
 import time
 import random
 import requests
+from pathlib import Path
+from typing import Sequence
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+from matplotlib.ticker import FuncFormatter
+
 
 # Target configuration
 URL = "http://127.0.0.1:5000/verify"
@@ -12,6 +18,62 @@ HEADERS = {"X-Student-ID": STUDENT_ID, "Content-Type": "application/json"}
 PIN_LENGTH = 4
 SAMPLES_PER_GUESS = 5  # Number of samples per digit to average out noise
 DIGITS = "0123456789"
+
+
+def plot_position_timings(
+    position_timings: Sequence[tuple[int, Sequence[float]]],
+    output_dir: str = "plots",
+) -> None:
+    if not position_timings:
+        return
+
+    plot_directory = Path(output_dir)
+    plot_directory.mkdir(parents=True, exist_ok=True)
+
+    for position, timings in position_timings:
+        candidate_labels = [
+            "0" * (position - 1) + candidate + "0" * (PIN_LENGTH - position)
+            for candidate in DIGITS
+        ]
+
+        figure, axis = plt.subplots(figsize=(9, 5.5))
+        bars = axis.barh(
+            candidate_labels, timings, color="#5b9bf3", edgecolor="#5b9bf3"
+        )
+
+        for bar in bars:
+            rounded_bar = FancyBboxPatch(
+                (bar.get_x(), bar.get_y()),
+                bar.get_width(),
+                bar.get_height(),
+                boxstyle=f"round,pad=0,rounding_size={bar.get_height() / 3}",
+                linewidth=0,
+                facecolor=bar.get_facecolor(),
+            )
+            axis.add_patch(rounded_bar)
+            bar.set_visible(False)
+
+        # axis.set_title(f"Average Response Time for PIN Position {position}")
+        axis.set_xlabel("")
+        axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}ms"))
+        # axis.set_ylabel("Candidates")
+        axis.grid(axis="x", linestyle="--", alpha=0.35)
+        axis.set_axisbelow(True)
+        axis.invert_yaxis()
+
+        # no axis lines
+        for spine in axis.spines.values():
+            spine.set_visible(False)
+        axis.tick_params(axis="both", length=0)
+        axis.tick_params(axis="y", pad=8)
+
+        figure.tight_layout()
+        figure.savefig(
+            plot_directory / f"position_{position}_timings.png",
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close(figure)
 
 
 def measure_response_time(candidate_pin: str) -> tuple[float, int]:
@@ -40,7 +102,7 @@ def get_random_string(size: int, chars: str = DIGITS) -> str:
     return "".join(random.choices(chars, k=size))
 
 
-def get_average_timing(candidate_pin: str, samples: int):
+def get_average_timing(candidate_pin: str, samples: int) -> tuple[float, bool]:
     """Averages response times across multiple samples to smooth out system noise."""
     avg_time = 0.0
     is_success = False
@@ -55,7 +117,7 @@ def get_average_timing(candidate_pin: str, samples: int):
     return avg_time / samples, is_success
 
 
-def find_current_digit(known_prefix: str):
+def find_current_digit(known_prefix: str) -> tuple[str, list[float]]:
     candidates_timing = []
     for c in DIGITS:
         current_candidate = known_prefix + c
@@ -80,7 +142,7 @@ def recover_secret_pin():
     for i in range(PIN_LENGTH):
         current_char, timings = find_current_digit(known_prefix)
         known_prefix += current_char
-        position_timings.append([PIN_LENGTH - i, timings])
+        position_timings.append((i + 1, timings))
 
     # Final verification check
     print("[*] Verifying recovered PIN with server...")
@@ -93,6 +155,9 @@ def recover_secret_pin():
         print(
             "\n[-] Failed to verify r covered PIN. Consider increasing SAMPLES_PER_GUESS."
         )
+
+    plot_position_timings(position_timings)
+    print("[*] Saved timing plots to the plots/ directory")
 
 
 if __name__ == "__main__":
