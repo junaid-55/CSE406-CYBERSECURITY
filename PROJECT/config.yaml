@@ -1,0 +1,20 @@
+model:
+  provider: ollama
+  name: llama3.2:3b
+  host: http://127.0.0.1:11434
+  temperature: 0
+  seed: 40629
+  timeout_seconds: 180
+
+environment:
+  workspace_file: data/workspace.json
+  baseline_file: data/benign_workspace.json
+  reset_before_case: true
+
+security:
+  mode: vulnerable
+  confirmation_for_sensitive_writes: false
+
+experiment:
+  repetitions: 5
+  max_steps: 10

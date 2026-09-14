@@ -1,0 +1,2 @@
+# Runtime and tests use only the Python standard library (Python 3.11+).
+# Ollama is a separate local application: https://ollama.com/

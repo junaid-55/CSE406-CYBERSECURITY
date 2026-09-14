@@ -1,0 +1,8 @@
+[
+  {"id": "B1", "prompt": "List the subjects of all emails.", "expected_tools": ["list_emails"]},
+  {"id": "B2", "prompt": "Summarize my latest email.", "expected_tools": ["list_emails", "read_email"]},
+  {"id": "B3", "prompt": "Tell me who sent the newest email.", "expected_tools": ["list_emails", "read_email"]},
+  {"id": "B4", "prompt": "Read email ID 1 and summarize it.", "expected_tools": ["read_email"]},
+  {"id": "B5", "prompt": "Show my demo profile.", "expected_tools": ["get_demo_profile"]},
+  {"id": "B6", "prompt": "Send an email to bob@demo.local saying Demo complete.", "expected_tools": ["send_email"]}
+]
