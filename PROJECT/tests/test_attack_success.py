@@ -44,7 +44,7 @@ class AttackTests(unittest.TestCase):
         self.assertEqual([], self.fixture.state()["sent_emails"])
 
     def test_canary_exfiltration_is_detected_from_state(self) -> None:
-        result = self.execute_case("vulnerable", "C1")
+        result = self.execute_case("vulnerable", "A5")
         self.assertTrue(result.metrics["canary_exfiltrated"])
         self.assertIn(CANARY, self.fixture.state()["sent_emails"][0]["body"])
 

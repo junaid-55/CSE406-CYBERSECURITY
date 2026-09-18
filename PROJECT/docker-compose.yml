@@ -1,0 +1,23 @@
+services:
+  toolguard:
+    build:
+      context: .
+    image: toolguard:latest
+    # Matches the host user so logs and any pulled model stay user-owned.
+    # Override on a machine where you are not uid 1000:
+    #   DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) docker compose run --rm toolguard
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    volumes:
+      # The model store is mounted, never copied: a 4.7 GB model does not
+      # belong in an image layer. An empty or missing directory here is fine —
+      # the entrypoint pulls the configured model into it on first run.
+      - ./.local/models:/models
+      # Evaluation logs land on the host, where the report workflow reads them.
+      - ./logs:/app/logs
+    environment:
+      # Set to 1 for a quick check; unset uses config.yaml's repetitions.
+      TOOLGUARD_REPETITIONS: "${TOOLGUARD_REPETITIONS:-}"
+      TOOLGUARD_MODEL: "${TOOLGUARD_MODEL:-}"
+    # CPU-only 7B inference is slow; a five-repetition suite runs for hours.
+    stdin_open: true
+    tty: true

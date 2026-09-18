@@ -1,10 +1,11 @@
 model:
   provider: ollama
-  name: llama3.2:3b
+  name: qwen2.5:7b
   host: http://127.0.0.1:11434
   temperature: 0
   seed: 40629
-  timeout_seconds: 180
+  timeout_seconds: 600
+  num_ctx: 8192
 
 environment:
   workspace_file: data/workspace.json

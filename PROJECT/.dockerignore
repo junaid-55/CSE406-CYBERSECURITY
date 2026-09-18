@@ -1,0 +1,18 @@
+# The build context must stay small. The model store alone is 4.4 GB and is
+# mounted at run time instead of being copied into the image. The project-local
+# Ollama install is excluded too: the image downloads a portable build instead
+# of reusing that Arch-built one.
+.local/models/
+# Mutable run state: the live workspace is rebuilt from data/benign_workspace.json
+# at container start, so a mutated host copy must not leak into the image.
+data/workspace.json
+.local/ollama/
+logs/
+docs/
+venv/
+.git/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage

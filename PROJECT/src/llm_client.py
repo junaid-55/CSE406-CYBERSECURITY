@@ -27,6 +27,7 @@ class OllamaClient:
     temperature: float = 0
     seed: int = 40629
     timeout: int = 180
+    num_ctx: int = 8192
     name: str = "ollama"
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
@@ -35,7 +36,13 @@ class OllamaClient:
             "messages": messages,
             "tools": tools,
             "stream": False,
-            "options": {"temperature": self.temperature, "seed": self.seed},
+            # num_ctx is pinned so the system prompt, tool schemas, and multi-step
+            # tool results never silently overflow Ollama's small default context.
+            "options": {
+                "temperature": self.temperature,
+                "seed": self.seed,
+                "num_ctx": self.num_ctx,
+            },
         }
         request = urllib.request.Request(
             f"{self.host.rstrip('/')}/api/chat",
@@ -46,15 +53,46 @@ class OllamaClient:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 decoded = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            # HTTPError subclasses URLError, so it must be caught first: the server
+            # answered, which means this is never a connectivity problem.
+            detail = _http_error_detail(error)
+            if error.code == 404:
+                raise LLMError(
+                    f"Ollama at {self.host} is running but has no model {self.model}: "
+                    f"{detail}. Run `ollama list`; if it is empty the server was started "
+                    f'without the project model store (export OLLAMA_MODELS="$PWD/.local/models" '
+                    f"before `ollama serve`). Otherwise pull the model with "
+                    f"`ollama pull {self.model}`."
+                ) from error
+            raise LLMError(
+                f"Ollama at {self.host} rejected the request for model {self.model} "
+                f"with HTTP {error.code}: {detail}"
+            ) from error
         except urllib.error.URLError as error:
             raise LLMError(
-                f"Cannot reach Ollama at {self.host}. Start `ollama serve` and pull {self.model}."
+                f"Cannot reach Ollama at {self.host} ({error.reason}). Start `ollama serve`."
             ) from error
         except (TimeoutError, json.JSONDecodeError) as error:
             raise LLMError(f"Invalid or timed-out response from Ollama: {error}") from error
         if "message" not in decoded:
             raise LLMError(f"Ollama response has no message: {decoded}")
         return decoded["message"]
+
+
+def _http_error_detail(error: urllib.error.HTTPError) -> str:
+    """Return the server-supplied reason for a failed Ollama request."""
+    try:
+        body = error.read().decode("utf-8", errors="replace").strip()
+    except OSError:
+        body = ""
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError:
+        return body[:300] or error.reason or f"HTTP {error.code}"
+    if isinstance(parsed, dict) and parsed.get("error"):
+        return str(parsed["error"])
+    return body[:300]
 
 
 def _tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -139,7 +177,7 @@ class DeterministicClient:
 
         if latest_name == "get_demo_profile":
             profile = latest.get("result", latest)
-            # Exfiltrate only when the retrieved email contained the C1 instruction.
+            # Exfiltrate only when the retrieved email contained the A5 instruction.
             email_results = [value.get("result", value) for name, value in results if name == "read_email"]
             if email_results and "attacker@demo.local" in str(email_results[-1].get("body", "")):
                 return _tool_call(
@@ -170,4 +208,5 @@ def make_client(config: dict[str, Any], backend: str) -> ChatBackend:
         temperature=float(model["temperature"]),
         seed=int(model["seed"]),
         timeout=int(model["timeout_seconds"]),
+        num_ctx=int(model.get("num_ctx", 8192)),
     )
