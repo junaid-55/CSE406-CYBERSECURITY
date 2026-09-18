@@ -12,7 +12,14 @@ class PolicyTests(unittest.TestCase):
 
     def test_send_is_explicitly_authorized(self) -> None:
         allowed = capabilities_for_task("Send an email to bob@demo.local saying Demo complete.")
-        self.assertEqual({"send_email"}, allowed)
+        # Idempotent reads are always granted; send_email is the gated capability.
+        self.assertIn("send_email", allowed)
+        self.assertEqual({"list_emails", "read_email", "send_email"}, allowed)
+
+    def test_idempotent_reads_always_allowed(self) -> None:
+        # Even a request that names no read still gets the non-state-changing reads.
+        allowed = capabilities_for_task("Do something unrelated.")
+        self.assertEqual({"list_emails", "read_email"}, allowed)
 
     def test_firewall_blocks_injected_send(self) -> None:
         firewall = ToolFirewall("Summarize my latest email.", mode="defended")

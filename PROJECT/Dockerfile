@@ -44,10 +44,15 @@ RUN apt-get update \
 COPY --from=ollama /opt/ollama/bin/ollama /opt/ollama/bin/ollama
 COPY --from=ollama /opt/ollama/lib/ollama /opt/ollama/lib/ollama
 
+# A real account for uid 1000, so an interactive `shell` shows a normal prompt
+# instead of bash's "I have no name!" fallback for an unresolvable uid.
+#
 # Ollama writes a keypair to $HOME/.ollama on startup. The home directory is
 # world-writable so the container still works when `user:` is overridden to a
 # uid other than 1000; nothing of value is kept there.
-RUN mkdir -p /home/toolguard && chmod 0777 /home/toolguard
+RUN groupadd --gid 1000 toolguard \
+ && useradd --uid 1000 --gid 1000 --home-dir /home/toolguard --shell /bin/bash toolguard \
+ && mkdir -p /home/toolguard && chmod 0777 /home/toolguard
 
 ENV HOME=/home/toolguard \
     PATH="/opt/ollama/bin:${PATH}" \

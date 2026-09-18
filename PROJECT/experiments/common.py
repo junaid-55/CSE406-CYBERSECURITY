@@ -10,6 +10,7 @@ from typing import Any
 from src.agent import run_agent
 from src.attacker import plant_attack
 from src.config import ROOT, load_config
+from src.payloads import PAYLOADS, payload_target
 from src.evaluator import aggregate
 from src.llm_client import make_client
 from src.workspace import Workspace
@@ -24,7 +25,61 @@ def arguments(description: str, include_payloads: bool = False) -> argparse.Name
     parser.add_argument("--mode", choices=("vulnerable", "delimited", "defended"))
     if include_payloads:
         parser.add_argument("--payload", action="append", help="Run only this payload ID (repeatable)")
+        parser.add_argument(
+            "--task",
+            help=(
+                "Override the user prompt for every selected case. Required when a "
+                "--payload has no entry in data/attack_cases.json."
+            ),
+        )
+        parser.add_argument(
+            "--expect",
+            action="append",
+            help="Expected tool for --task, repeatable; defaults to list_emails and read_email",
+        )
     return parser.parse_args()
+
+
+def select_cases(cases: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
+    """Filter cases by --payload, synthesizing one for any payload with no case.
+
+    This is what makes ad-hoc T-series runs possible: a payload only needs an
+    entry in src/payloads.py, and the prompt comes from --task on the command
+    line rather than from data/attack_cases.json.
+    """
+
+    task = getattr(args, "task", None)
+    expected = list(getattr(args, "expect", None) or []) or ["list_emails", "read_email"]
+    if not args.payload:
+        selected = cases
+    else:
+        wanted = [item.upper() for item in args.payload]
+        unknown = [pid for pid in wanted if pid not in PAYLOADS]
+        if unknown:
+            raise SystemExit(
+                f"Unknown payload(s): {', '.join(unknown)}. Defined payloads: {', '.join(PAYLOADS)}"
+            )
+        by_payload = {case["payload"].upper(): case for case in cases}
+        selected = []
+        for payload_id in wanted:
+            case = by_payload.get(payload_id)
+            if case is None:
+                if not task:
+                    raise SystemExit(
+                        f"Payload {payload_id} has no case in data/attack_cases.json; "
+                        f"pass --task \"...\" to supply the user prompt."
+                    )
+                case = {
+                    "id": f"AT-{payload_id}",
+                    "payload": payload_id,
+                    "task": task,
+                    "expected_tools": expected,
+                    "goal": "ad_hoc",
+                }
+            selected.append(case)
+    if task:
+        selected = [dict(case, task=task, expected_tools=expected) for case in selected]
+    return selected
 
 
 def load_json(relative: str) -> Any:
@@ -53,6 +108,9 @@ def run_cases(
             payload = case.get("payload")
             if attack:
                 plant_attack(workspace, str(payload))
+            channel, recipient, marker, absent = (
+                payload_target(str(payload)) if payload else ("email", None, None, [])
+            )
             case_id = f"{case['id']}-{mode}-r{repetition}"
             print(f"\n=== {case_id} ===")
             result = run_agent(
@@ -65,6 +123,10 @@ def run_cases(
                 expected_tools=list(case.get("expected_tools", [])),
                 attack_enabled=attack,
                 payload_id=str(payload) if payload else None,
+                attack_recipient=recipient,
+                attack_marker=marker,
+                attack_channel=channel,
+                attack_absent=absent,
                 trace=True,
             )
             records.append(

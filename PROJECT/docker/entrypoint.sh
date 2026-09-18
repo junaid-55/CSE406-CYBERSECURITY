@@ -79,6 +79,10 @@ case "${1:-suite}" in
         python3 -m unittest discover -v
         ;;
     shell)
+        log "Ollama is up and the workspace is reset. The agent is a Python module,"
+        log "not a chat prompt. For example:"
+        log '  python3 -m src.agent --backend ollama --mode vulnerable --prompt "Summarize my latest email."'
+        log "  python3 -m experiments.run_benign --backend ollama --mode vulnerable --repetitions 1"
         exec bash
         ;;
     *)

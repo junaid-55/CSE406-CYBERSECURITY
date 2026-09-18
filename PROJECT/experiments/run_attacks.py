@@ -1,14 +1,11 @@
 """Measure attacks against the intentionally vulnerable executor."""
 
-from .common import arguments, load_json, run_cases
+from .common import arguments, load_json, run_cases, select_cases
 
 
 def main() -> None:
     args = arguments("Run ToolGuard vulnerable attack cases", include_payloads=True)
-    cases = load_json("data/attack_cases.json")
-    if args.payload:
-        selected = {item.upper() for item in args.payload}
-        cases = [case for case in cases if case["payload"].upper() in selected]
+    cases = select_cases(load_json("data/attack_cases.json"), args)
     run_cases(
         cases,
         backend_name=args.backend,

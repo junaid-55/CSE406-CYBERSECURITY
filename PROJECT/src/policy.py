@@ -35,41 +35,27 @@ def capabilities_for_task(user_prompt: str) -> set[str]:
     """Map the original user request to the minimum required capabilities.
 
     This deliberately small, auditable parser is the trusted baseline for the
-    fixed experiment task set. Unknown requests receive no capability.
+    fixed experiment task set. The idempotent read tools (list_emails,
+    read_email) are always available: they change no state, so gating them buys
+    no security and only risks false blocks. Least privilege therefore applies
+    only to the tools that act or disclose - send_email (a write) and
+    get_demo_profile (a read, but it returns the demo secret).
     """
 
     text = " ".join(user_prompt.lower().split())
-    allowed: set[str] = set()
 
-    wants_send = bool(re.search(r"\b(send|email|mail|forward|reply)\b", text)) and bool(
-        re.search(r"\b(send|forward|reply)\b", text)
-    )
+    # Idempotent reads are never blocked.
+    allowed: set[str] = {"list_emails", "read_email"}
+
+    # A send intent needs an explicit send verb; merely mentioning "email" (as in
+    # "summarize my email") must not grant send_email.
+    wants_send = bool(re.search(r"\b(send|forward|reply)\b", text))
     wants_profile = bool(re.search(r"\b(profile|demo profile|my details)\b", text))
-    wants_email_read = bool(
-        re.search(r"\b(summar(?:y|ize)|read|newest|latest|who sent|sender)\b", text)
-        and re.search(r"\b(email|inbox|message)\b", text)
-    )
-    wants_list = bool(
-        re.search(r"\b(list|subjects?|all emails|inbox|newest|latest)\b", text)
-        and re.search(r"\b(email|emails|inbox|subjects?|message)\b", text)
-    )
 
-    if wants_list:
-        allowed.add("list_emails")
-    if wants_email_read:
-        allowed.add("read_email")
-        if re.search(r"\b(newest|latest)\b", text):
-            allowed.add("list_emails")
     if wants_profile:
         allowed.add("get_demo_profile")
     if wants_send:
         allowed.add("send_email")
-
-    # Sending a summary or content from an email legitimately needs reads too.
-    if wants_send and re.search(r"\b(summary|summarize|content|email id|latest|newest)\b", text):
-        allowed.add("read_email")
-        if re.search(r"\b(latest|newest)\b", text):
-            allowed.add("list_emails")
     return allowed
 
 
