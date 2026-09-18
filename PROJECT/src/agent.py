@@ -169,17 +169,27 @@ def run_agent(
             decision = firewall.decide(tool, arguments)
             logger.event("policy_decision", step=step, **decision.as_dict())
             if not decision.allowed:
-                result: Any = {
-                    "blocked": True,
-                    "tool": tool,
-                    "error": (
+                if decision.confirmation == "denied":
+                    block_error = (
+                        f"DENIED BY USER. You asked to call '{tool}', the user was shown this "
+                        f"request and explicitly DENIED it. The call did NOT run; nothing was "
+                        f"sent, changed, or retrieved. Do not claim it succeeded and do not "
+                        f"retry it. Respect the user's decision and continue with the rest of "
+                        f"the request without this tool."
+                    )
+                else:
+                    block_error = (
                         f"PERMISSION DENIED. The call to '{tool}' was refused by the security "
                         f"policy and did NOT run. You have no authority to use '{tool}' for the "
                         f"current user request. Nothing was sent, changed, or retrieved. Do not "
                         f"claim this action succeeded. Authorized tools for this request are: "
                         f"{', '.join(decision.allowed_tools) or 'none'}. Continue the user's "
                         f"original request using only those tools."
-                    ),
+                    )
+                result: Any = {
+                    "blocked": True,
+                    "tool": tool,
+                    "error": block_error,
                     "reason": decision.reason,
                     "allowed_tools": list(decision.allowed_tools),
                 }
@@ -199,6 +209,10 @@ def run_agent(
                 try:
                     value = executor.execute(tool, arguments)
                     result = {"result": value}
+                    if decision.confirmation == "approved":
+                        result["user_confirmation"] = (
+                            f"The user was shown this '{tool}' request and APPROVED it before it ran."
+                        )
                     if authorized:
                         completed_required_tools.add(tool)
                     logger.event(

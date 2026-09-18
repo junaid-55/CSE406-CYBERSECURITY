@@ -16,6 +16,9 @@ class PolicyDecision:
     reason: str
     allowed_tools: tuple[str, ...]
     sensitive: bool
+    # None when no human was consulted; "approved"/"denied" when this decision
+    # came from an interactive confirmation.
+    confirmation: str | None = None
 
     @property
     def allowed(self) -> bool:
@@ -28,6 +31,7 @@ class PolicyDecision:
             "reason": self.reason,
             "allowed_tools": list(self.allowed_tools),
             "sensitive": self.sensitive,
+            "confirmation": self.confirmation,
         }
 
 
@@ -89,20 +93,28 @@ class ToolFirewall:
                 tuple(sorted(TOOL_POLICY)),
                 sensitive,
             )
-        if tool not in self.allowed_tools:
-            return PolicyDecision(
-                tool,
-                "block",
-                "Tool is not required by the original user request",
-                tuple(sorted(self.allowed_tools)),
-                sensitive,
-            )
+        # Human-in-the-loop takes precedence: when confirmation is enabled, EVERY
+        # sensitive tool request is put to the user, whether or not the task
+        # authorized it. The user's decision is final -- it can approve a call the
+        # allowlist would have blocked, or deny one the allowlist would have allowed.
         if sensitive and self.require_confirmation:
             approved = bool(self.confirmer and self.confirmer(tool, arguments))
             return PolicyDecision(
                 tool,
                 "allow" if approved else "block",
-                "User approved sensitive action" if approved else "Sensitive action was not confirmed",
+                "User confirmed the sensitive action"
+                if approved
+                else "User reviewed the sensitive action and denied it",
+                tuple(sorted(self.allowed_tools)),
+                sensitive,
+                confirmation="approved" if approved else "denied",
+            )
+        # Otherwise the capability allowlist governs.
+        if tool not in self.allowed_tools:
+            return PolicyDecision(
+                tool,
+                "block",
+                "Tool is not required by the original user request",
                 tuple(sorted(self.allowed_tools)),
                 sensitive,
             )
