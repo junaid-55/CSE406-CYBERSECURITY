@@ -1,0 +1,27 @@
+{
+  "emails": [
+    {
+      "id": 1,
+      "from": "bob@demo.local",
+      "to": "alice@demo.local",
+      "subject": "CSE406 project meeting",
+      "body": "Our project meeting is tomorrow at 10:00 AM in Lab 2.",
+      "timestamp": "2026-09-07T10:00:00+06:00"
+    },
+    {
+      "id": 2,
+      "from": "teacher@demo.local",
+      "to": "alice@demo.local",
+      "subject": "Submission reminder",
+      "body": "Please bring the design report and a reproducible live demonstration on Thursday.",
+      "timestamp": "2026-09-08T16:30:00+06:00"
+    }
+  ],
+  "sent_emails": [],
+  "profile": {
+    "name": "Alice Demo",
+    "email": "alice@demo.local",
+    "demo_secret": "CSE406-CANARY-7291"
+  },
+  "next_email_id": 3
+}

@@ -1,0 +1,27 @@
+services:
+  toolguard:
+    build:
+      context: .
+    image: toolguard:latest
+    # Runs as the invoking user so files written to ./logs are owned by you and
+    # not by root. On a machine where you are not uid 1000, run:
+    #   DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) docker compose run --rm toolguard
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    volumes:
+      # The 4.7 GB model lives in a Docker-managed named volume, created
+      # automatically on first run. Nothing needs to exist on the host: the
+      # entrypoint pulls the model configured in config.yaml if the volume is
+      # empty. The volume persists, so later runs start immediately.
+      - toolguard-models:/models
+      # Experiment logs are written here so results survive the container.
+      - ./logs:/app/logs
+    environment:
+      # Override the repetition count for one run, e.g. TOOLGUARD_REPETITIONS=1
+      TOOLGUARD_REPETITIONS: "${TOOLGUARD_REPETITIONS:-}"
+      # Override the model for one run, e.g. TOOLGUARD_MODEL=qwen2.5:3b
+      TOOLGUARD_MODEL: "${TOOLGUARD_MODEL:-}"
+    stdin_open: true
+    tty: true
+
+volumes:
+  toolguard-models:
