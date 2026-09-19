@@ -204,6 +204,8 @@ def run_agent(
                 if trace:
                     print(f"[TOOL FIREWALL] BLOCK {tool}: {decision.reason}")
                 if authorized:
+                    # A required action explicitly denied by policy/confirmation must
+                    # not be requested forever.
                     completed_required_tools.add(tool)
             else:
                 try:
