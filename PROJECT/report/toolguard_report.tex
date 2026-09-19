@@ -243,8 +243,9 @@ addresses the authorized-channel case (A6), where tool-level authority alone is
 insufficient.
 
 \section{Data-flow diagrams}
-The three figures below trace one email through the pipeline: the benign flow, the
-undefended/delimited flow when an injection fires, and the firewall flow that blocks it.
+The four figures below trace one email through the pipeline: the benign flow, the
+undefended/delimited flow when an injection fires, the firewall flow that blocks it, and
+the human-in-the-loop flow in which the user adjudicates the sensitive call.
 
 \begin{figure}[H]
 \centering
@@ -304,9 +305,53 @@ model politely).}
 \end{tikzpicture}
 \caption{\texttt{defended} flow: the model still \emph{requests} the attacker send, but the
 firewall blocks it because the user's request did not authorize \texttt{send\_email}. The
-executor is never reached. (With human-in-the-loop confirmation, the ``decide'' step is a
-prompt to the user, and denial produces the same block.)}
+executor is never reached.}
 \label{fig:seq-def}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\scriptsize,>=Latex]
+  \foreach \x/\name in {0/User,2.6/Agent,5.2/Model,7.8/Firewall,10.4/Executor}{
+    \node[draw,fill=gray!10,minimum width=13mm] (h\name) at (\x,0){\name};
+    \draw[dashed] (\x,-0.4)--(\x,-8.0);
+  }
+  \draw[->] (hUser)+(0,-0.6) -- ($(hAgent)+(0,-0.6)$) node[midway,above]{summarize};
+  \draw[<-] ($(hAgent)+(0,-1.1)$) -- ($(hModel)+(0,-1.1)$) node[midway,above]{read\_email(3)};
+  \draw[<-,attackred] ($(hAgent)+(0,-1.8)$) -- ($(hModel)+(0,-1.8)$) node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{attackred}{send\_email(attacker)}};
+  \draw[->] ($(hAgent)+(0,-2.4)$) -- ($(hFirewall)+(0,-2.4)$) node[midway,above,fill=white,inner sep=1.5pt]{sensitive?};
+  \draw[->,trustblue,thick] ($(hFirewall)+(0,-3.0)$) -- ($(hUser)+(0,-3.0)$)
+        node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{trustblue}{confirm? to=attacker@demo.local}};
+
+  % --- alt fragment: the user's answer decides -----------------------------
+  \draw[gray,thin] (-0.9,-3.45) rectangle (11.3,-7.85);
+  \draw[gray,thin,dashed] (-0.9,-5.75) -- (11.3,-5.75);
+  \node[draw=gray,fill=white,thin,inner sep=1.5pt,anchor=north west,font=\scriptsize\bfseries] at (-0.9,-3.45) {alt};
+  \node[anchor=north west,font=\scriptsize\itshape,attackred] at (0.15,-3.5) {[user answers Y]};
+  \node[anchor=north west,font=\scriptsize\itshape,okgreen] at (0.15,-5.8) {[user answers N]};
+
+  % Y branch: approved -> executes -> attack succeeds
+  \draw[<-,attackred,thick] ($(hFirewall)+(0,-4.25)$) -- ($(hUser)+(0,-4.25)$)
+        node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{attackred}{Y (approve)}};
+  \draw[->,attackred] ($(hFirewall)+(0,-4.8)$) -- ($(hExecutor)+(0,-4.8)$) node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{attackred}{allow}};
+  \draw[->,attackred,thick] ($(hExecutor)+(0,-5.3)$) -- ($(hExecutor)+(0.75,-5.3)$) node[right,font=\scriptsize]{\textcolor{attackred}{sent}};
+  \draw[<-,attackred] ($(hAgent)+(0,-5.3)$) -- ($(hModel)+(0,-5.3)$) node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{attackred}{result + ``user APPROVED''}};
+
+  % N branch: denied -> blocked
+  \draw[<-,okgreen,thick] ($(hFirewall)+(0,-6.5)$) -- ($(hUser)+(0,-6.5)$)
+        node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{okgreen}{N (deny)}};
+  \draw[->,okgreen,thick] ($(hFirewall)+(0,-7.0)$) -- ($(hFirewall)+(0.75,-7.0)$) node[right,font=\scriptsize]{\textcolor{okgreen}{BLOCK}};
+  \draw[<-,okgreen] ($(hAgent)+(0,-7.5)$) -- ($(hModel)+(0,-7.5)$) node[midway,above,fill=white,inner sep=1.5pt]{\textcolor{okgreen}{``DENIED BY USER''}};
+\end{tikzpicture}
+\caption{\texttt{defended} + human-in-the-loop flow. Confirmation is consulted before the
+allowlist, so \emph{every} sensitive request reaches the user together with its arguments
+--- here the attacker recipient. The user's answer is authoritative and decides the branch:
+\textcolor{attackred}{Y} lets the call execute (the attack succeeds, and the model is told
+the user approved), \textcolor{okgreen}{N} blocks it before the executor is reached (the
+model is told the user refused). Because the gate is on the \emph{arguments}, this is the
+only configuration that also stops A6, where the tool itself is authorized and only the
+recipient is malicious.}
+\label{fig:seq-hitl}
 \end{figure}
 
 \section{Results}
